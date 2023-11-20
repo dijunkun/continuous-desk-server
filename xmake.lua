@@ -8,8 +8,9 @@ add_rules("mode.release", "mode.debug")
 
 add_requires("asio 1.24.0", "nlohmann_json", "spdlog 1.11.0")
 
-add_defines("ASIO_STANDALONE", "ASIO_HAS_STD_TYPE_TRAITS", "ASIO_HAS_STD_SHARED_PTR", 
-    "ASIO_HAS_STD_ADDRESSOF", "ASIO_HAS_STD_ATOMIC", "ASIO_HAS_STD_CHRONO", "ASIO_HAS_CSTDINT", "ASIO_HAS_STD_ARRAY",
+add_defines("ASIO_STANDALONE", "ASIO_HAS_STD_TYPE_TRAITS",
+    "ASIO_HAS_STD_SHARED_PTR", "ASIO_HAS_STD_ADDRESSOF", "ASIO_HAS_STD_ATOMIC",
+    "ASIO_HAS_STD_CHRONO", "ASIO_HAS_CSTDINT", "ASIO_HAS_STD_ARRAY",
     "ASIO_HAS_STD_SYSTEM_ERROR", "SIGNAL_LOGGER")
 
 if is_os("windows") then
@@ -23,21 +24,21 @@ end
 
 add_packages("spdlog")
 
-includes("../../thirdparty")
+includes("thirdparty")
 
 target("log")
     set_kind("headeronly")
     add_packages("spdlog")
-    add_headerfiles("../utils/log/log.h")
-    add_includedirs("../utils/log", {public = true})
+    add_headerfiles("src/log/log.h")
+    add_includedirs("src/log", {public = true})
 
 target("common")
     set_kind("headeronly")
-    add_includedirs("../../src/common", {public = true})
+    add_includedirs("src/common", {public = true})
 
 target("signal_server")
     set_kind("binary")
     add_deps("log", "common")
-    add_files("*.cpp")
+    add_files("src/*.cpp")
     add_packages("asio", "nlohmann_json", "spdlog")
-    add_includedirs("../../thirdparty/websocketpp/include")
+    add_includedirs("thirdparty/websocketpp/include")
