@@ -198,7 +198,9 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       std::string transmission_id = j["transmission_id"].get<std::string>();
       std::string password = j["password"].get<std::string>();
 
-      if (transmission_manager_.CheckPassword(password, transmission_id)) {
+      int ret = transmission_manager_.CheckPassword(password, transmission_id);
+
+      if (0 == ret) {
         std::vector<std::string> user_id_list =
             transmission_manager_.GetAllUserIdOfTransmission(transmission_id);
 
@@ -208,13 +210,27 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
                         {"status", "success"}};
 
         send_msg(hdl, message);
-      } else {
+      } else if (-1 == ret) {
         std::vector<std::string> user_id_list;
         json message = {{"type", "user_id_list"},
                         {"transmission_id", transmission_id},
                         {"user_id_list", user_id_list},
                         {"status", "failed"},
                         {"reason", "Incorrect password"}};
+        // LOG_INFO(
+        //     "Incorrect password [{}] for transmission [{}] with password is "
+        //     "[{}]",
+        //     password, transmission_id,
+        //     transmission_manager_.GetPassword(transmission_id));
+
+        send_msg(hdl, message);
+      } else if (-2 == ret) {
+        std::vector<std::string> user_id_list;
+        json message = {{"type", "user_id_list"},
+                        {"transmission_id", transmission_id},
+                        {"user_id_list", user_id_list},
+                        {"status", "failed"},
+                        {"reason", "No such transmission id"}};
         // LOG_INFO(
         //     "Incorrect password [{}] for transmission [{}] with password is "
         //     "[{}]",

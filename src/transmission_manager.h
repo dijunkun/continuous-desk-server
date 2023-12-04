@@ -28,8 +28,8 @@ class TransmissionManager {
 
   websocketpp::connection_hdl GetWsHandle(const std::string& user_id);
   std::string GetUserId(websocketpp::connection_hdl hdl);
-  bool CheckPassword(const std::string& password,
-                     const std::string& transmission_id);
+  int CheckPassword(const std::string& password,
+                    const std::string& transmission_id);
   std::string GetPassword(const std::string& transmission_id);
 
  private:

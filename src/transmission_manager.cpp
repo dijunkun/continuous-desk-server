@@ -145,15 +145,15 @@ std::string TransmissionManager::GetUserId(websocketpp::connection_hdl hdl) {
   return "";
 }
 
-bool TransmissionManager::CheckPassword(const std::string& password,
-                                        const std::string& transmission_id) {
+int TransmissionManager::CheckPassword(const std::string& password,
+                                       const std::string& transmission_id) {
   if (transmission_password_list_.find(transmission_id) ==
       transmission_password_list_.end()) {
     LOG_ERROR("No transmission with id [{}]", transmission_id);
-    return false;
+    return -2;
   }
 
-  return transmission_password_list_[transmission_id] == password;
+  return transmission_password_list_[transmission_id] == password ? 0 : -1;
 }
 
 std::string TransmissionManager::GetPassword(
