@@ -73,11 +73,10 @@ bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
                transmission_id);
     }
 
-    if (std::string::npos != user_id.find("S-")) {
+    if (std::string::npos != user_id.find("H-")) {
       transmission_list_.erase(transmission_id);
       transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
-      LOG_INFO("Release transmission [{}] due to server leaves",
-               transmission_id);
+      LOG_INFO("Release transmission [{}] due to host leaves", transmission_id);
     }
 
     for (const auto& user_id : user_id_list) {
@@ -185,10 +184,10 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       }
 
       transmission_manager_.ReleaseUserIdFromTransmission(hdl);
-      if (std::string::npos != user_id.find("S-")) {
+      if (std::string::npos != user_id.find("H-")) {
         transmission_list_.erase(transmission_id);
         transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
-        LOG_INFO("Release transmission [{}] due to server leaves",
+        LOG_INFO("Release transmission [{}] due to host leaves",
                  transmission_id);
       }
 
