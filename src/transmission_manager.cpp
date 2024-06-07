@@ -8,17 +8,21 @@ TransmissionManager::~TransmissionManager() {}
 
 std::vector<std::string> TransmissionManager::GetAllUserIdOfTransmission(
     const std::string& transmission_id) {
-  if (transmission_guest_id_list_.find(transmission_id) !=
-          transmission_guest_id_list_.end() &&
-      transmission_host_id_list_.find(transmission_id) !=
-          transmission_host_id_list_.end()) {
-    auto user_id_list = transmission_guest_id_list_[transmission_id];
+  std::vector<std::string> user_id_list;
+  if (transmission_host_id_list_.find(transmission_id) !=
+      transmission_host_id_list_.end()) {
     auto host_id = transmission_host_id_list_[transmission_id];
     user_id_list.push_back(host_id);
-    return user_id_list;
   }
 
-  return std::vector<std::string>();
+  if (transmission_guest_id_list_.find(transmission_id) !=
+      transmission_guest_id_list_.end()) {
+    auto guest_id_list = transmission_guest_id_list_[transmission_id];
+    user_id_list.insert(user_id_list.end(), guest_id_list.begin(),
+                        guest_id_list.end());
+  }
+
+  return user_id_list;
 }
 
 bool TransmissionManager::BindHostIdToTransmission(
