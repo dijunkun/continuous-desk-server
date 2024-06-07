@@ -97,6 +97,21 @@ bool TransmissionManager::BindUserIdToWsHandle(
   return true;
 }
 
+std::string TransmissionManager::ReleaseUserIdToWsHandle(
+    websocketpp::connection_hdl hdl) {
+  std::string user_id;
+  for (auto it = user_id_ws_hdl_list_.begin(); it != user_id_ws_hdl_list_.end();
+       ++it) {
+    if (it->second.lock().get() == hdl.lock().get()) {
+      user_id = it->first;
+      user_id_ws_hdl_list_.erase(it);
+      break;
+    }
+  }
+
+  return user_id;
+}
+
 bool TransmissionManager::IsHostOfTransmission(
     const std::string& user_id, const std::string& transmission_id) {
   if (transmission_host_id_list_.find(transmission_id) ==
@@ -106,26 +121,40 @@ bool TransmissionManager::IsHostOfTransmission(
   return transmission_host_id_list_[transmission_id] == user_id;
 }
 
-std::string TransmissionManager::ReleaseGuestIdFromTransmission(
-    websocketpp::connection_hdl hdl) {
-  for (auto it = user_id_ws_hdl_list_.begin(); it != user_id_ws_hdl_list_.end();
-       ++it) {
-    if (it->second.lock().get() == hdl.lock().get()) {
-      for (auto trans_it = transmission_guest_id_list_.begin();
-           trans_it != transmission_guest_id_list_.end(); ++trans_it) {
-        auto& guest_id_list = trans_it->second;
-        auto guest_id_it =
-            std::find(guest_id_list.begin(), guest_id_list.end(), it->first);
-        if (guest_id_it != guest_id_list.end()) {
-          guest_id_list.erase(guest_id_it);
-          LOG_INFO("Remove guest id [{}] from transmission [{}]", it->first,
-                   trans_it->first);
-          user_id_ws_hdl_list_.erase(it);
-          return trans_it->first;
-        }
-      }
+std::string TransmissionManager::ReleaseHostIdFromTransmission(
+    const std::string& host_id) {
+  std::string transmission_id;
+  for (auto trans_it = transmission_host_id_list_.begin();
+       trans_it != transmission_host_id_list_.end(); ++trans_it) {
+    if (trans_it->second == host_id) {
+      LOG_INFO("Remove host id [{}] from transmission [{}]", host_id,
+               trans_it->first);
+      transmission_id = trans_it->first;
+      transmission_host_id_list_.erase(trans_it);
+      return transmission_id;
     }
   }
+
+  return "";
+}
+
+std::string TransmissionManager::ReleaseGuestIdFromTransmission(
+    const std::string& guest_id) {
+  std::string transmission_id;
+  for (auto trans_it = transmission_guest_id_list_.begin();
+       trans_it != transmission_guest_id_list_.end(); ++trans_it) {
+    auto& guest_id_list = trans_it->second;
+    auto guest_id_it =
+        std::find(guest_id_list.begin(), guest_id_list.end(), guest_id);
+    if (guest_id_it != guest_id_list.end()) {
+      LOG_INFO("Remove guest id [{}] from transmission [{}]", guest_id,
+               trans_it->first);
+      transmission_id = trans_it->first;
+      guest_id_list.erase(guest_id_it);
+      return transmission_id;
+    }
+  }
+
   return "";
 }
 

@@ -54,10 +54,31 @@ bool SignalServer::on_open(websocketpp::connection_hdl hdl) {
 }
 
 bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
-  LOG_INFO("Websocket onnection [{}] closed", ws_connection_id_);
-  std::string user_id = transmission_manager_.GetUserId(hdl);
-  std::string transmission_id =
-      transmission_manager_.ReleaseGuestIdFromTransmission(hdl);
+  std::string user_id = transmission_manager_.ReleaseUserIdToWsHandle(hdl);
+  LOG_INFO("Websocket onnection [{}|{}] closed", ws_connections_[hdl], user_id);
+
+  bool is_host = false;
+  for (auto it = transmission_list_with_host_id_.begin();
+       it != transmission_list_with_host_id_.end(); it++) {
+    if (it->second == user_id) {
+      is_host = true;
+      break;
+    }
+  }
+
+  std::string transmission_id = "";
+
+  if (is_host) {
+    transmission_id =
+        transmission_manager_.ReleaseHostIdFromTransmission(user_id);
+
+    transmission_list_with_host_id_.erase(transmission_id);
+    transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
+    LOG_INFO("Release transmission [{}] due to host leaves", transmission_id);
+  } else {
+    transmission_id =
+        transmission_manager_.ReleaseGuestIdFromTransmission(user_id);
+  }
 
   if (!transmission_id.empty()) {
     json message = {{"type", "user_leave_transmission"},
@@ -67,22 +88,11 @@ bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
     std::vector<std::string> user_id_list =
         transmission_manager_.GetAllUserIdOfTransmission(transmission_id);
 
-    if (user_id_list.empty()) {
-      transmission_list_.erase(transmission_id);
-      LOG_INFO("Release transmission [{}] due to no user in this transmission",
-               transmission_id);
-    }
-
-    if (transmission_manager_.IsHostOfTransmission(user_id, transmission_id)) {
-      transmission_list_.erase(transmission_id);
-      transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
-      LOG_INFO("Release transmission [{}] due to host leaves", transmission_id);
-    }
-
     for (const auto& user_id : user_id_list) {
       send_msg(transmission_manager_.GetWsHandle(user_id), message);
     }
   }
+
   ws_connections_.erase(hdl);
 
   return true;
@@ -129,12 +139,12 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       std::string host_id = j["user_id"].get<std::string>();
       LOG_INFO("Receive host id [{}] create transmission request with id [{}]",
                host_id, transmission_id);
-      if (transmission_list_.find(transmission_id) ==
-          transmission_list_.end()) {
+      if (transmission_list_with_host_id_.find(transmission_id) ==
+          transmission_list_with_host_id_.end()) {
         if (transmission_id.empty()) {
           transmission_id = GenerateTransmissionId();
-          while (transmission_list_.find(transmission_id) !=
-                 transmission_list_.end()) {
+          while (transmission_list_with_host_id_.find(transmission_id) !=
+                 transmission_list_with_host_id_.end()) {
             transmission_id = GenerateTransmissionId();
           }
           LOG_INFO(
@@ -142,7 +152,7 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
               "[{}]",
               transmission_id);
         }
-        transmission_list_.insert(transmission_id);
+        transmission_list_with_host_id_[transmission_id] = host_id;
 
         transmission_manager_.BindHostIdToTransmission(host_id,
                                                        transmission_id);
@@ -183,11 +193,11 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
         send_msg(transmission_manager_.GetWsHandle(user_id), message);
       }
 
-      transmission_manager_.ReleaseGuestIdFromTransmission(hdl);
+      transmission_manager_.ReleaseGuestIdFromTransmission(user_id);
 
       if (transmission_manager_.IsHostOfTransmission(user_id,
                                                      transmission_id)) {
-        transmission_list_.erase(transmission_id);
+        transmission_list_with_host_id_.erase(transmission_id);
         transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
         LOG_INFO("Release transmission [{}] due to host leaves",
                  transmission_id);

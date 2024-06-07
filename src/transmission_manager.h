@@ -27,8 +27,10 @@ class TransmissionManager {
   bool IsHostOfTransmission(const std::string& user_id,
                             const std::string& transmission_id);
 
-  std::string ReleaseGuestIdFromTransmission(websocketpp::connection_hdl hdl);
+  std::string ReleaseHostIdFromTransmission(const std::string& host_id);
+  std::string ReleaseGuestIdFromTransmission(const std::string& guest_id);
 
+  std::string ReleaseUserIdToWsHandle(websocketpp::connection_hdl hdl);
   bool ReleaseAllUserIdFromTransmission(const std::string& transmission_id);
   bool ReleasePasswordFromTransmission(const std::string& transmission_id);
 

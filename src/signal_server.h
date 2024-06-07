@@ -44,7 +44,7 @@ class SignalServer {
   std::map<room_id, connection_id> rooms_;
   unsigned int ws_connection_id_ = 0;
 
-  std::set<std::string> transmission_list_;
+  std::map<std::string, std::string> transmission_list_with_host_id_;
   TransmissionManager transmission_manager_;
 };
 
