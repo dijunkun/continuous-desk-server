@@ -87,7 +87,8 @@ bool TransmissionManager::BindPasswordToTransmission(
 bool TransmissionManager::BindUserIdToWsHandle(
     const std::string& user_id, websocketpp::connection_hdl hdl) {
   if (user_id_ws_hdl_list_.find(user_id) != user_id_ws_hdl_list_.end()) {
-    LOG_WARN("User id already bind to websocket handle [{}]", user_id,
+    LOG_WARN("User id [{}] already bind to websocket handle [{} | now {}]",
+             user_id, user_id_ws_hdl_list_[user_id].lock().get(),
              hdl.lock().get());
     return false;
   } else {
