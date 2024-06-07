@@ -57,7 +57,7 @@ bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
   LOG_INFO("Websocket onnection [{}] closed", ws_connection_id_);
   std::string user_id = transmission_manager_.GetUserId(hdl);
   std::string transmission_id =
-      transmission_manager_.ReleaseUserIdFromTransmission(hdl);
+      transmission_manager_.ReleaseGuestIdFromTransmission(hdl);
 
   if (!transmission_id.empty()) {
     json message = {{"type", "user_leave_transmission"},
@@ -76,7 +76,6 @@ bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
     if (transmission_manager_.IsHostOfTransmission(user_id, transmission_id)) {
       transmission_list_.erase(transmission_id);
       transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
-      transmission_manager_.ReleaseHostIdFromTransmission(transmission_id);
       LOG_INFO("Release transmission [{}] due to host leaves", transmission_id);
     }
 
@@ -147,8 +146,6 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
 
         transmission_manager_.BindHostIdToTransmission(host_id,
                                                        transmission_id);
-        transmission_manager_.BindUserIdToTransmission(host_id,
-                                                       transmission_id);
         transmission_manager_.BindUserIdToWsHandle(host_id, hdl);
         transmission_manager_.BindPasswordToTransmission(password,
                                                          transmission_id);
@@ -186,13 +183,12 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
         send_msg(transmission_manager_.GetWsHandle(user_id), message);
       }
 
-      transmission_manager_.ReleaseUserIdFromTransmission(hdl);
+      transmission_manager_.ReleaseGuestIdFromTransmission(hdl);
 
       if (transmission_manager_.IsHostOfTransmission(user_id,
                                                      transmission_id)) {
         transmission_list_.erase(transmission_id);
         transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
-        transmission_manager_.ReleaseHostIdFromTransmission(transmission_id);
         LOG_INFO("Release transmission [{}] due to host leaves",
                  transmission_id);
       }
@@ -255,7 +251,7 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       std::string user_id = j["user_id"].get<std::string>();
       std::string remote_user_id = j["remote_user_id"].get<std::string>();
 
-      transmission_manager_.BindUserIdToTransmission(user_id, transmission_id);
+      transmission_manager_.BindGuestIdToTransmission(user_id, transmission_id);
       transmission_manager_.BindUserIdToWsHandle(user_id, hdl);
 
       websocketpp::connection_hdl destination_hdl =
