@@ -73,9 +73,10 @@ bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
                transmission_id);
     }
 
-    if (std::string::npos != user_id.find("H-")) {
+    if (transmission_manager_.IsHostOfTransmission(user_id, transmission_id)) {
       transmission_list_.erase(transmission_id);
       transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
+      transmission_manager_.ReleaseHostIdFromTransmission(transmission_id);
       LOG_INFO("Release transmission [{}] due to host leaves", transmission_id);
     }
 
@@ -126,9 +127,9 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
     case "create_transmission"_H: {
       std::string transmission_id = j["transmission_id"].get<std::string>();
       std::string password = j["password"].get<std::string>();
-      std::string user_id = j["user_id"].get<std::string>();
-      LOG_INFO("Receive user id [{}] create transmission request with id [{}]",
-               user_id, transmission_id);
+      std::string host_id = j["user_id"].get<std::string>();
+      LOG_INFO("Receive host id [{}] create transmission request with id [{}]",
+               host_id, transmission_id);
       if (transmission_list_.find(transmission_id) ==
           transmission_list_.end()) {
         if (transmission_id.empty()) {
@@ -144,9 +145,11 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
         }
         transmission_list_.insert(transmission_id);
 
-        transmission_manager_.BindUserIdToTransmission(user_id,
+        transmission_manager_.BindHostIdToTransmission(host_id,
                                                        transmission_id);
-        transmission_manager_.BindUserIdToWsHandle(user_id, hdl);
+        transmission_manager_.BindUserIdToTransmission(host_id,
+                                                       transmission_id);
+        transmission_manager_.BindUserIdToWsHandle(host_id, hdl);
         transmission_manager_.BindPasswordToTransmission(password,
                                                          transmission_id);
 
@@ -184,9 +187,12 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       }
 
       transmission_manager_.ReleaseUserIdFromTransmission(hdl);
-      if (std::string::npos != user_id.find("H-")) {
+
+      if (transmission_manager_.IsHostOfTransmission(user_id,
+                                                     transmission_id)) {
         transmission_list_.erase(transmission_id);
         transmission_manager_.ReleaseAllUserIdFromTransmission(transmission_id);
+        transmission_manager_.ReleaseHostIdFromTransmission(transmission_id);
         LOG_INFO("Release transmission [{}] due to host leaves",
                  transmission_id);
       }

@@ -40,6 +40,22 @@ bool TransmissionManager::BindUserIdToTransmission(
   return true;
 }
 
+bool TransmissionManager::BindHostIdToTransmission(
+    const std::string& host_id, const std::string& transmission_id) {
+  if (transmission_host_id_list_.find(transmission_id) ==
+      transmission_host_id_list_.end()) {
+    transmission_host_id_list_[transmission_id] = host_id;
+    LOG_INFO("Bind host id [{}]  to transmission [{}]", host_id,
+             transmission_id);
+    return true;
+  } else {
+    LOG_WARN("Host id [{}] already bind to transmission [{}]", host_id,
+             transmission_id);
+    return false;
+  }
+  return true;
+}
+
 bool TransmissionManager::BindPasswordToTransmission(
     const std::string& password, const std::string& transmission_id) {
   if (transmission_password_list_.find(transmission_id) ==
@@ -69,6 +85,15 @@ bool TransmissionManager::BindUserIdToWsHandle(
     user_id_ws_hdl_list_[user_id] = hdl;
   }
   return true;
+}
+
+bool TransmissionManager::IsHostOfTransmission(
+    const std::string& user_id, const std::string& transmission_id) {
+  if (transmission_host_id_list_.find(transmission_id) ==
+      transmission_host_id_list_.end()) {
+    return false;
+  }
+  return transmission_host_id_list_[transmission_id] == user_id;
 }
 
 std::string TransmissionManager::ReleaseUserIdFromTransmission(
@@ -122,6 +147,19 @@ bool TransmissionManager::ReleasePasswordFromTransmission(
   }
 
   transmission_password_list_.erase(transmission_id);
+
+  return true;
+}
+
+bool TransmissionManager::ReleaseHostIdFromTransmission(
+    const std::string& transmission_id) {
+  if (transmission_host_id_list_.find(transmission_id) ==
+      transmission_host_id_list_.end()) {
+    LOG_ERROR("No transmission with id [{}]", transmission_id);
+    return false;
+  }
+
+  transmission_host_id_list_.erase(transmission_id);
 
   return true;
 }
