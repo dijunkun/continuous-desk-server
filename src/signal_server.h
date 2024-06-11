@@ -41,10 +41,8 @@ class SignalServer {
   std::map<websocketpp::connection_hdl, connection_id,
            std::owner_less<websocketpp::connection_hdl>>
       ws_connections_;
-  std::map<room_id, connection_id> rooms_;
   unsigned int ws_connection_id_ = 0;
 
-  std::map<std::string, std::string> transmission_list_with_host_id_;
   TransmissionManager transmission_manager_;
 };
 
