@@ -66,7 +66,7 @@ class TransmissionManager {
       std::owner_less<websocketpp::connection_hdl>>
       ws_hdl_iter_list_;
   std::thread ws_hdl_alive_checker_;
-  std::mutex ws_hdl_alive_checker_mutex_;
+  std::recursive_mutex ws_hdl_alive_checker_mutex_;
 };
 
 #endif

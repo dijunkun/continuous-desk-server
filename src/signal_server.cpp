@@ -44,6 +44,7 @@ SignalServer::~SignalServer() {}
 
 bool SignalServer::on_open(websocketpp::connection_hdl hdl) {
   ws_connections_[hdl] = ws_connection_id_++;
+
   LOG_INFO("New websocket connection [{}] established", ws_connection_id_);
 
   json message = {{"type", "ws_connection_id"},
@@ -55,27 +56,30 @@ bool SignalServer::on_open(websocketpp::connection_hdl hdl) {
 
 bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
   std::string user_id = transmission_manager_.ReleaseUserFromeWsHandle(hdl);
-  LOG_INFO("Websocket onnection [{}|{}] closed", ws_connections_[hdl], user_id);
+  if (!user_id.empty()) {
+    LOG_INFO("Websocket onnection [{}|{}] closed", ws_connections_[hdl],
+             user_id);
 
-  std::string transmission_id = transmission_manager_.IsHost(user_id);
+    std::string transmission_id = transmission_manager_.IsHost(user_id);
 
-  if (!transmission_id.empty()) {
-    transmission_manager_.ReleaseTransmission(transmission_id);
-    LOG_INFO("Release transmission [{}] due to host leaves", transmission_id);
-  } else {
-    transmission_id = transmission_manager_.IsGuest(user_id);
-  }
+    if (!transmission_id.empty()) {
+      transmission_manager_.ReleaseTransmission(transmission_id);
+      LOG_INFO("Release transmission [{}] due to host leaves", transmission_id);
+    } else {
+      transmission_id = transmission_manager_.IsGuest(user_id);
+    }
 
-  if (!transmission_id.empty()) {
-    json message = {{"type", "user_leave_transmission"},
-                    {"transmission_id", transmission_id},
-                    {"user_id", user_id}};
+    if (!transmission_id.empty()) {
+      json message = {{"type", "user_leave_transmission"},
+                      {"transmission_id", transmission_id},
+                      {"user_id", user_id}};
 
-    std::vector<std::string> user_id_list =
-        transmission_manager_.GetAllUserIdOfTransmission(transmission_id);
+      std::vector<std::string> user_id_list =
+          transmission_manager_.GetAllUserIdOfTransmission(transmission_id);
 
-    for (const auto& user_id : user_id_list) {
-      send_msg(transmission_manager_.GetWsHandle(user_id), message);
+      for (const auto& user_id : user_id_list) {
+        send_msg(transmission_manager_.GetWsHandle(user_id), message);
+      }
     }
   }
 
@@ -125,8 +129,9 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       std::string transmission_id = j["transmission_id"].get<std::string>();
       std::string password = j["password"].get<std::string>();
       std::string host_id = j["user_id"].get<std::string>();
-      LOG_INFO("Receive host id [{}] create transmission request with id [{}]",
-               host_id, transmission_id);
+      LOG_INFO(
+          "Receive host id [{}|{}] create transmission request with id [{}]",
+          host_id, hdl.lock().get(), transmission_id);
       if (!transmission_manager_.IsTransmissionExist(transmission_id)) {
         if (transmission_id.empty()) {
           transmission_id = GenerateTransmissionId();

@@ -25,10 +25,18 @@ bool TransmissionManager::IsTransmissionExist(
 
 bool TransmissionManager::ReleaseTransmission(
     const std::string& transmission_id) {
+  std::lock_guard<std::recursive_mutex> lock(ws_hdl_alive_checker_mutex_);
   if (transmission_guest_id_list_.end() !=
       transmission_guest_id_list_.find(transmission_id)) {
     auto guest_id_list = transmission_guest_id_list_[transmission_id];
     for (auto& guest_id : guest_id_list) {
+      auto hdl = GetWsHandle(guest_id);
+      if (ws_hdl_iter_list_.find(hdl) != ws_hdl_iter_list_.end()) {
+        auto iter = ws_hdl_iter_list_[hdl];
+        ws_hdl_last_active_time_list_.erase(iter);
+        ws_hdl_iter_list_.erase(hdl);
+      }
+
       if (user_id_ws_hdl_list_.find(guest_id) != user_id_ws_hdl_list_.end()) {
         LOG_INFO("Remove user id [{}] from transmission [{}]", guest_id,
                  transmission_id);
@@ -42,6 +50,13 @@ bool TransmissionManager::ReleaseTransmission(
   if (transmission_host_id_list_.end() !=
       transmission_host_id_list_.find(transmission_id)) {
     auto host_id = transmission_host_id_list_[transmission_id];
+    auto hdl = GetWsHandle(host_id);
+    if (ws_hdl_iter_list_.find(hdl) != ws_hdl_iter_list_.end()) {
+      auto iter = ws_hdl_iter_list_[hdl];
+      ws_hdl_last_active_time_list_.erase(iter);
+      ws_hdl_iter_list_.erase(hdl);
+    }
+
     if (user_id_ws_hdl_list_.find(host_id) != user_id_ws_hdl_list_.end()) {
       LOG_INFO("Remove user id [{}] from transmission [{}]", host_id,
                transmission_id);
@@ -121,7 +136,7 @@ bool TransmissionManager::BindGuestToTransmission(
   if (transmission_guest_id_list_.find(transmission_id) ==
       transmission_guest_id_list_.end()) {
     transmission_guest_id_list_[transmission_id].push_back(guest_id);
-    LOG_INFO("Bind guest id [{}]  to transmission [{}]", guest_id,
+    LOG_INFO("Bind guest id [{}] to transmission [{}]", guest_id,
              transmission_id);
     return true;
   } else {
@@ -242,7 +257,6 @@ websocketpp::connection_hdl TransmissionManager::GetWsHandle(
 std::string TransmissionManager::GetUserId(websocketpp::connection_hdl hdl) {
   for (auto it = user_id_ws_hdl_list_.begin(); it != user_id_ws_hdl_list_.end();
        ++it) {
-    // LOG_INFO("[{}]", it->first);
     if (it->second.lock().get() == hdl.lock().get()) return it->first;
   }
   return "";
@@ -274,7 +288,8 @@ std::string TransmissionManager::GetPassword(
 int TransmissionManager::UpdateWsHandleLastActiveTime(
     websocketpp::connection_hdl hdl) {
   // if already record last active time
-  std::lock_guard<std::mutex> lock(ws_hdl_alive_checker_mutex_);
+  std::lock_guard<std::recursive_mutex> lock(ws_hdl_alive_checker_mutex_);
+
   if (ws_hdl_iter_list_.find(hdl) != ws_hdl_iter_list_.end()) {
     auto it = ws_hdl_iter_list_[hdl];
     if (it != ws_hdl_last_active_time_list_.end()) {
@@ -283,9 +298,7 @@ int TransmissionManager::UpdateWsHandleLastActiveTime(
   }
 
   uint32_t now_time =
-      std::chrono::duration_cast<std::chrono::seconds>(
-          std::chrono::high_resolution_clock::now().time_since_epoch())
-          .count();
+      std::chrono::system_clock::now().time_since_epoch().count();
   ws_hdl_last_active_time_list_.push_front(std::make_pair(hdl, now_time));
   ws_hdl_iter_list_[hdl] = ws_hdl_last_active_time_list_.begin();
 
@@ -294,37 +307,40 @@ int TransmissionManager::UpdateWsHandleLastActiveTime(
 
 void TransmissionManager::AliveChecker() {
   while (true) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
 
-    std::lock_guard<std::mutex> lock(ws_hdl_alive_checker_mutex_);
+    std::lock_guard<std::recursive_mutex> lock(ws_hdl_alive_checker_mutex_);
     while (!ws_hdl_last_active_time_list_.empty()) {
+      auto hdl = ws_hdl_last_active_time_list_.back().first;
+      if (hdl.expired()) {
+        break;
+      }
+
       uint32_t now_time =
-          std::chrono::duration_cast<std::chrono::seconds>(
-              std::chrono::high_resolution_clock::now().time_since_epoch())
-              .count();
-      bool is_dead = now_time - ws_hdl_last_active_time_list_.back().second > 2;
+          std::chrono::system_clock::now().time_since_epoch().count();
+
+      uint32_t duration =
+          now_time - ws_hdl_last_active_time_list_.back().second;
+
+      bool is_dead = duration > 100000000 ? true : false;
 
       if (is_dead) {
-        auto hdl = ws_hdl_last_active_time_list_.back().first;
+        LOG_INFO("Websocket handle [{}] is dead", hdl.lock().get());
         if (ws_hdl_iter_list_.find(hdl) != ws_hdl_iter_list_.end()) {
           auto it = ws_hdl_iter_list_[hdl];
-          ws_hdl_last_active_time_list_.pop_back();
 
           auto user_id = GetUserId(hdl);
           auto transmission_id = IsHost(user_id);
           if (transmission_id.empty()) {
-            LOG_INFO("Host [{}] is dead, release transmission [{}]", user_id,
-                     transmission_id);
+            LOG_INFO("Host [{}|{}] is dead, release transmission [{}]", user_id,
+                     hdl.lock().get(), transmission_id);
             ReleaseTransmission(transmission_id);
-          } else {
-            transmission_id = IsGuest(user_id);
-            if (transmission_id.empty()) {
-              LOG_INFO("Guest [{}] is dead, release it from transmission [{}]",
-                       user_id, transmission_id);
-              ReleaseUserFromeWsHandle(hdl);
-            }
           }
+          ws_hdl_last_active_time_list_.pop_back();
+          ws_hdl_iter_list_.erase(hdl);
         }
+      } else {
+        break;
       }
     }
   }
