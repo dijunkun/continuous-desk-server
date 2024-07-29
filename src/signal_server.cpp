@@ -247,9 +247,8 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
     }
     case "offer"_H: {
       std::string transmission_id = j["transmission_id"].get<std::string>();
-      std::string sdp = j["sdp"].get<std::string>();
-      std::string user_id = j["user_id"].get<std::string>();
       std::string remote_user_id = j["remote_user_id"].get<std::string>();
+      std::string user_id = j["user_id"].get<std::string>();
 
       transmission_manager_.BindGuestToTransmission(user_id, transmission_id);
       transmission_manager_.BindUserToWsHandle(user_id, hdl);
@@ -257,48 +256,60 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       websocketpp::connection_hdl destination_hdl =
           transmission_manager_.GetWsHandle(remote_user_id);
 
-      json message = {{"type", "offer"},
-                      {"sdp", sdp},
-                      {"remote_user_id", user_id},
-                      {"transmission_id", transmission_id}};
+      if (j.contains("sdp")) {
+        std::string sdp = j["sdp"].get<std::string>();
+        json message = {
+            {"type", "offer"},
+            {"transmission_id", transmission_id},
+            {"remote_user_id", user_id},
+            {"sdp", sdp},
+        };
+        LOG_INFO("[{}] send offer to [{}]", user_id, remote_user_id);
+        send_msg(destination_hdl, message);
 
-      LOG_INFO("[{}] send offer to [{}]", user_id, remote_user_id);
-      send_msg(destination_hdl, message);
+      } else {
+        LOG_ERROR("Invalid offer msg");
+      }
 
       break;
     }
     case "answer"_H: {
       std::string transmission_id = j["transmission_id"].get<std::string>();
-      std::string sdp = j["sdp"].get<std::string>();
+      std::string remote_user_id = j["remote_user_id"].get<std::string>();
+      std::string user_id = j["user_id"].get<std::string>();
+
+      websocketpp::connection_hdl destination_hdl =
+          transmission_manager_.GetWsHandle(remote_user_id);
+
+      if (j.contains("sdp")) {
+        std::string sdp = j["sdp"].get<std::string>();
+        json message = {{"type", "answer"},
+                        {"sdp", sdp},
+                        {"remote_user_id", user_id},
+                        {"transmission_id", transmission_id}};
+        LOG_INFO("[{}] send answer to [{}]", user_id, remote_user_id);
+        send_msg(destination_hdl, message);
+      } else {
+        LOG_ERROR("Invalid answer msg");
+      }
+
+      break;
+    }
+    case "new_candidate"_H: {
+      std::string transmission_id = j["transmission_id"].get<std::string>();
+      std::string candidate = j["sdp"].get<std::string>();
       std::string user_id = j["user_id"].get<std::string>();
       std::string remote_user_id = j["remote_user_id"].get<std::string>();
 
       websocketpp::connection_hdl destination_hdl =
           transmission_manager_.GetWsHandle(remote_user_id);
 
-      // LOG_INFO("send answer sdp [{}]", sdp);
-      LOG_INFO("[{}] send answer to [{}]", user_id, remote_user_id);
-      json message = {{"type", "answer"},
-                      {"sdp", sdp},
+      LOG_INFO("send candidate [{}]", candidate.c_str());
+      json message = {{"type", "new_candidate"},
+                      {"sdp", candidate},
                       {"remote_user_id", user_id},
                       {"transmission_id", transmission_id}};
       send_msg(destination_hdl, message);
-      break;
-    }
-    case "offer_candidate"_H: {
-      std::string transmission_id = j["transmission_id"].get<std::string>();
-      std::string candidate = j["sdp"].get<std::string>();
-      LOG_INFO("send candidate [{}]", candidate.c_str());
-      json message = {{"type", "candidate"}, {"sdp", candidate}};
-      // send_msg(answer_hdl_map_[transmission_id], message);
-      break;
-    }
-    case "answer_candidate"_H: {
-      std::string transmission_id = j["transmission_id"].get<std::string>();
-      std::string candidate = j["sdp"].get<std::string>();
-      LOG_INFO("send candidate [{}]", candidate.c_str());
-      json message = {{"type", "candidate"}, {"sdp", candidate}};
-      // send_msg(offer_hdl_map_[transmission_id], message);
       break;
     }
     default:
