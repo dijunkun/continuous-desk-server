@@ -9,6 +9,7 @@
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 
+#include "client_id_generator.h"
 #include "transmission_manager.h"
 
 using nlohmann::json;
@@ -43,7 +44,9 @@ class SignalServer {
       ws_connections_;
   unsigned int ws_connection_id_ = 0;
 
+ private:
   TransmissionManager transmission_manager_;
+  ClientIdGenerator client_id_generator_;
 };
 
 #endif

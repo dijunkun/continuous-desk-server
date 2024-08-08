@@ -120,7 +120,7 @@ bool TransmissionManager::BindHostToTransmission(
   if (transmission_host_id_list_.find(transmission_id) ==
       transmission_host_id_list_.end()) {
     transmission_host_id_list_[transmission_id] = host_id;
-    LOG_INFO("Bind host id [{}]  to transmission [{}]", host_id,
+    LOG_INFO("Bind host id [{}] to transmission [{}]", host_id,
              transmission_id);
     return true;
   } else {
@@ -297,10 +297,13 @@ int TransmissionManager::UpdateWsHandleLastActiveTime(
     }
   }
 
-  uint32_t now_time =
-      std::chrono::system_clock::now().time_since_epoch().count();
+  uint32_t now_time = std::chrono::duration_cast<std::chrono::seconds>(
+                          std::chrono::system_clock::now().time_since_epoch())
+                          .count();
   ws_hdl_last_active_time_list_.push_front(std::make_pair(hdl, now_time));
   ws_hdl_iter_list_[hdl] = ws_hdl_last_active_time_list_.begin();
+
+  // LOG_INFO("Update [{}] with time [{}]", hdl.lock().get(), now_time);
 
   return 0;
 }
@@ -317,7 +320,9 @@ void TransmissionManager::AliveChecker() {
       }
 
       uint32_t now_time =
-          std::chrono::system_clock::now().time_since_epoch().count();
+          std::chrono::duration_cast<std::chrono::seconds>(
+              std::chrono::system_clock::now().time_since_epoch())
+              .count();
 
       uint32_t duration =
           now_time - ws_hdl_last_active_time_list_.back().second;
@@ -325,7 +330,11 @@ void TransmissionManager::AliveChecker() {
       bool is_dead = duration > 100000000 ? true : false;
 
       if (is_dead) {
-        LOG_INFO("Websocket handle [{}] is dead", hdl.lock().get());
+        LOG_INFO(
+            "Websocket handle [{}] is dead, now time [{}], last active time "
+            "[{}], duration [{}]",
+            hdl.lock().get(), now_time,
+            ws_hdl_last_active_time_list_.back().second, duration);
         if (ws_hdl_iter_list_.find(hdl) != ws_hdl_iter_list_.end()) {
           auto it = ws_hdl_iter_list_[hdl];
 
