@@ -44,20 +44,13 @@ SignalServer::~SignalServer() {}
 
 bool SignalServer::on_open(websocketpp::connection_hdl hdl) {
   ws_connections_[hdl] = ws_connection_id_++;
-
-  LOG_INFO("New websocket connection [{}] established", ws_connection_id_);
-
-  // json message = {{"type", "ws_connection_id"},
-  //                 {"ws_connection_id", ws_connection_id_}};
-  // server_.send(hdl, message.dump(), websocketpp::frame::opcode::text);
-
   return true;
 }
 
 bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
   std::string user_id = transmission_manager_.ReleaseUserFromeWsHandle(hdl);
   if (!user_id.empty()) {
-    LOG_INFO("Websocket onnection [{}|{}] closed", ws_connections_[hdl],
+    LOG_INFO("Websocket connection [{}|{}] closed", ws_connections_[hdl],
              user_id);
 
     std::string transmission_id = transmission_manager_.IsHost(user_id);
@@ -134,7 +127,7 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
         LOG_INFO("New client, assign id [{}] to it", host_id);
       }
 
-      LOG_INFO("Receive host id [{}] login request with id [{}]", host_id);
+      LOG_INFO("Receive login request with id [{}]", host_id);
       bool success = transmission_manager_.BindUserToWsHandle(host_id, hdl);
       if (success) {
         json message = {
@@ -153,8 +146,10 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       std::string password = j["password"].get<std::string>();
       std::string host_id = j["user_id"].get<std::string>();
 
-      LOG_INFO("Receive host id [{}] create transmission request with id [{}]",
-               host_id, transmission_id);
+      LOG_INFO(
+          "Receive host id [{}] create transmission request with transmission "
+          "id [{}]",
+          host_id, transmission_id);
       if (!transmission_manager_.IsTransmissionExist(transmission_id)) {
         if (transmission_id.empty()) {
           transmission_id = GenerateTransmissionId();
