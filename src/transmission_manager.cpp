@@ -36,12 +36,6 @@ bool TransmissionManager::ReleaseTransmission(
         ws_hdl_last_active_time_list_.erase(iter);
         ws_hdl_iter_list_.erase(hdl);
       }
-
-      if (user_id_ws_hdl_list_.find(guest_id) != user_id_ws_hdl_list_.end()) {
-        LOG_INFO("Remove user id [{}] from transmission [{}]", guest_id,
-                 transmission_id);
-        user_id_ws_hdl_list_.erase(guest_id);
-      }
     }
 
     transmission_guest_id_list_.erase(transmission_id);
@@ -56,13 +50,6 @@ bool TransmissionManager::ReleaseTransmission(
       ws_hdl_last_active_time_list_.erase(iter);
       ws_hdl_iter_list_.erase(hdl);
     }
-
-    if (user_id_ws_hdl_list_.find(host_id) != user_id_ws_hdl_list_.end()) {
-      LOG_INFO("Remove user id [{}] from transmission [{}]", host_id,
-               transmission_id);
-      user_id_ws_hdl_list_.erase(host_id);
-    }
-
     transmission_host_id_list_.erase(transmission_id);
   }
 
