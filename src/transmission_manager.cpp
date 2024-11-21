@@ -206,8 +206,8 @@ bool TransmissionManager::ReleaseGuestFromTransmission(
     auto guest_id_it =
         std::find(guest_id_list.begin(), guest_id_list.end(), guest_id);
     if (guest_id_it != guest_id_list.end()) {
-      LOG_INFO("Remove guest id [{}] from transmission [{}]", guest_id,
-               trans_it->first);
+      // LOG_INFO("Remove guest id [{}] from transmission [{}]", guest_id,
+      //          trans_it->first);
       guest_id_list.erase(guest_id_it);
       return true;
     }

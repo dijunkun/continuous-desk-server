@@ -8,6 +8,7 @@
 #define _CLIENT_ID_GENERATOR_H_
 
 #include <iostream>
+#include <string>
 
 class ClientIdGenerator {
  public:

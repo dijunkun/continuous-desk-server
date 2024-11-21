@@ -29,6 +29,9 @@ SignalServer::SignalServer() {
   server_.set_close_handler(
       std::bind(&SignalServer::on_close, this, std::placeholders::_1));
 
+  server_.set_fail_handler(
+      std::bind(&SignalServer::on_fail, this, std::placeholders::_1));
+
   server_.set_message_handler(std::bind(&SignalServer::on_message, this,
                                         std::placeholders::_1,
                                         std::placeholders::_2));
@@ -53,22 +56,42 @@ bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
     LOG_INFO("Websocket connection [{}|{}] closed", ws_connections_[hdl],
              user_id);
 
-    std::string transmission_id = transmission_manager_.IsHost(user_id);
+    // check user is host or not
+    std::string transmission_id_host = transmission_manager_.IsHost(user_id);
+    if (!transmission_id_host.empty()) {
+      transmission_manager_.ReleaseTransmission(transmission_id_host);
+      LOG_INFO("Release transmission [{}] due to host [{}] leaves",
+               transmission_id_host, user_id);
 
-    if (!transmission_id.empty()) {
-      transmission_manager_.ReleaseTransmission(transmission_id);
-      LOG_INFO("Release transmission [{}] due to host leaves", transmission_id);
-    } else {
-      transmission_id = transmission_manager_.IsGuest(user_id);
-    }
-
-    if (!transmission_id.empty()) {
+      // notify all users in transmission
       json message = {{"type", "user_leave_transmission"},
-                      {"transmission_id", transmission_id},
+                      {"transmission_id", transmission_id_host},
                       {"user_id", user_id}};
 
       std::vector<std::string> user_id_list =
-          transmission_manager_.GetAllUserIdOfTransmission(transmission_id);
+          transmission_manager_.GetAllUserIdOfTransmission(
+              transmission_id_host);
+
+      for (const auto& user_id : user_id_list) {
+        send_msg(transmission_manager_.GetWsHandle(user_id), message);
+      }
+    }
+
+    // check user is guest or not
+    std::string transmission_id_guest = transmission_manager_.IsGuest(user_id);
+    if (!transmission_id_guest.empty()) {
+      transmission_manager_.ReleaseGuestFromTransmission(user_id);
+      LOG_INFO("Release guest [{}] from transmission [{}]", user_id,
+               transmission_id_guest);
+
+      // notify all users in transmission
+      json message = {{"type", "user_leave_transmission"},
+                      {"transmission_id", transmission_id_guest},
+                      {"user_id", user_id}};
+
+      std::vector<std::string> user_id_list =
+          transmission_manager_.GetAllUserIdOfTransmission(
+              transmission_id_guest);
 
       for (const auto& user_id : user_id_list) {
         send_msg(transmission_manager_.GetWsHandle(user_id), message);
@@ -78,6 +101,15 @@ bool SignalServer::on_close(websocketpp::connection_hdl hdl) {
 
   ws_connections_.erase(hdl);
 
+  return true;
+}
+
+bool SignalServer::on_fail(websocketpp::connection_hdl hdl) {
+  std::string user_id = transmission_manager_.GetUserId(hdl);
+  if (!user_id.empty()) {
+    LOG_INFO("Websocket connection [{}|{}] failed", ws_connections_[hdl],
+             user_id);
+  }
   return true;
 }
 

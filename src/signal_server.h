@@ -27,6 +27,8 @@ class SignalServer {
 
   bool on_close(websocketpp::connection_hdl hdl);
 
+  bool on_fail(websocketpp::connection_hdl hdl);
+
   bool on_ping(websocketpp::connection_hdl hdl, std::string s);
 
   bool on_pong(websocketpp::connection_hdl hdl, std::string s);
