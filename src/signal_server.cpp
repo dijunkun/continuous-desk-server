@@ -227,8 +227,11 @@ void SignalServer::on_message(websocketpp::connection_hdl hdl,
       std::vector<std::string> user_id_list =
           transmission_manager_.GetAllUserIdOfTransmission(transmission_id);
 
-      for (const auto& user_id : user_id_list) {
-        send_msg(transmission_manager_.GetWsHandle(user_id), message);
+      for (const auto& user : user_id_list) {
+        if (user == user_id) {
+          continue;
+        }
+        send_msg(transmission_manager_.GetWsHandle(user), message);
       }
 
       bool is_host =
